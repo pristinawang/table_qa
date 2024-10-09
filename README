@@ -1,0 +1,3 @@
+conda create -n chain_table python=3.10.13
+conda activate chain_table
+pip install -r requirements.txt
