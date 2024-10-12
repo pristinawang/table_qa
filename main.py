@@ -1,3 +1,5 @@
+from datetime import datetime
+import csv
 from datasets import load_dataset
 from vllm import LLM, SamplingParams
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -227,7 +229,8 @@ class LoadModel:
 #     print(prompt)
 
 class ChainOfTable:
-    def __init__(self, train_dataset, llm, model, tokenizer, device):
+    def __init__(self, train_dataset, llm, model, tokenizer, device, output_path):
+        self.output_path = output_path
         self.llm=llm
         self.train_dataset = train_dataset
         self.model=model
@@ -455,36 +458,47 @@ class ChainOfTable:
         print("#########################")
         print("RawAns")
         print(raw_answer)
+        ans = raw_answer.strip(' ').strip('\n')
+        print("CleanAns")
+        print(ans)
         print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        return raw_answer
+        return ans
     def run(self):
-        correct=0
-        for i in range(1,len(self.train_dataset)):
-            data = self.train_dataset[i]
-            T = data['table']
-            Q = data['question']
-            A = data['answers']
-            id = data['id']
-            A_hat = self.chain_of_table(T,Q)
-            A_hat = re.sub(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$', '', A_hat)
-            if re.fullmatch(r'[\d,]+', A_hat):
-                # Remove commas if it's a numeric string
-                A_hat = A_hat.replace(',', '')      
-            if A_hat==A[0]: correct+=1
-            accuracy = correct/i
-            print("#########################")
-            print("Finale A", id,i)
-            print(A)
-            print("Finale A_hat", id,i)
-            print(A_hat)
-            print("Finale acc till now")
-            print(accuracy)
-            print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+        with open(self.output_path, 'w', newline='') as tsvfile:
+                # Create a CSV writer object with tab as a delimiter
+            writer = csv.writer(tsvfile, delimiter='\t')
+
+            correct=0
+            for i in range(1,len(self.train_dataset)):
+                data = self.train_dataset[i]
+                T = data['table']
+                Q = data['question']
+                A = data['answers']
+                id = data['id']
+                A_hat = self.chain_of_table(T,Q)
+                # A_hat = re.sub(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$', '', A_hat)
+                # if re.fullmatch(r'[\d,]+', A_hat):
+                #     # Remove commas if it's a numeric string
+                #     A_hat = A_hat.replace(',', '')      
+                if A_hat==A[0]: correct+=1
+                accuracy = correct/i
+                print("#########################")
+                print("Finale A", id,i)
+                print(A)
+                print("Finale A_hat", id,i)
+                print(A_hat)
+                print("Finale acc till now")
+                print(accuracy)
+                print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+                writer.writerow([id, A_hat])
+        print("TSV file created successfully with path "+ self.output_path)
             
     
     def prompt_vllm(self, prompt, llm, type):
         if type=="ans":
-            content = "You are a helpful assistant who uses the examples provided to answer. You only give answers no more no less."
+            #content = '''You are a helpful assistant. Provide only the direct answer in numeric form when the answer is a number. Do not write numbers as words (e.g., 4 instead of "four"). Provide only the final answer, with no extra words, explanations, or references to data structure (e.g., no mentioning of rows, columns, or other metadata). Your response should strictly be the final answer in lowercase, with no introductory phrases.'''
+            #content = '''You are a helpful assistant. Provide only the direct answer, without any extra words, explanations, calculations, or references to data structure (e.g., no mentioning of rows, columns, or other metadata). Your response should be strictly the final answer in lowercase and if it's number, in numeric format, with no introductory phrases.'''
+            content = "You are a helpful assistant. Provide only the direct answer, without any extra words, explanations, or references to data structure (e.g., no mentioning of rows, columns, or other metadata). Your response should be strictly the final answer in lowercase, with no introductory phrases."
         else:
             content = "You are a helpful assistant who uses the examples provided to answer following the format."
         
@@ -728,6 +742,7 @@ class ChainOfTable:
             else: order_str = order_str.group(1)
             if order_str == "small to large": order = "Ascend"
             elif order_str == "large to small": order = "Descend"
+            else: return None
             print("##########################")
             print("GENERATE ARGS raw column:")
             print(column)
@@ -966,10 +981,16 @@ if __name__=="__main__":
     ## Load model
     model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
     llm = LLM(model=model_id)
-    
+
+    ## Output file path
+    now = datetime.now()
+    # Format the datetime as numeric only: YYYYMMDDHHMMSS
+    numeric_datetime = now.strftime("%Y%m%d%H%M%S")
+    output_path = "/home/pwang71/withKoehn/table_qa/wikitq_out/" + numeric_datetime + ".tsv"
+    print("Output file path:", output_path)    
 
     
-    chain_of_table = ChainOfTable(train_dataset=trainDataset, llm=llm, model="model", tokenizer="tok",device=device)
+    chain_of_table = ChainOfTable(train_dataset=trainDataset, llm=llm, model="model", tokenizer="tok",device=device, output_path=output_path)
     chain_of_table.run()
 
     
