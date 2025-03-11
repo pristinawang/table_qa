@@ -5,4 +5,9 @@ pip install -r requirements.txt
 Check wikitq accuracy:
 .tsv files are model output files
 python version is python3
+<<<<<<< HEAD
 use command: python evaluator-py3.py -t ./tagged <tsv file path>
+=======
+use command: python evaluator-py3.py -t ./WikiTQ_Evaluator_tagged <tsv file path>
+>>>>>>> e7eeb40 (AddingChainTableCode from the grid)
+ex command: python evaluator-py3.py -t WikiTQ_Evaluator_tagged/ ./wikitq_out/20241108055239.tsv 
