@@ -1,9 +1,6 @@
 from datasets import load_dataset
-<<<<<<< HEAD
-=======
 import torch
 from vllm import LLM, SamplingParams
->>>>>>> 2df85402731eb3fea657c357f067a5741508452e
 
 def dataset():
     dataset = load_dataset("Stanford/wikitablequestions")
