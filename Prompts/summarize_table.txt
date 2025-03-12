@@ -1,0 +1,13 @@
+Below is a table. Understand the table and provide contextual natural language summary. To provide contextual natural language summary, understand the table thoroughly and summarize your understanding in natural language without mentioning rows and columns. 
+Example:
+Table:
+/*
+col : Week | When | Kickoff | Opponent | Results; Final score | Results; Team record
+row 1 : 1 | Saturday, April 13 | 7:00 p.m. | at Rhein Fire | W 27-21 | 1-0
+row 2 : 2 | Saturday, April 20 | 7:00 p.m. | London Monarchs | W 37-3 | 2-0
+row 3 : 3 | Sunday, April 28 | 6:00 p.m. | at Barcelona Dragons | W 33-29 | 3-0
+*/
+Summary:
+The table outlines the performance of a football team over the first three weeks of their season. They played their opening game on Saturday, April 13, against the Rhein Fire, securing a close victory with a final score of 27-21 and starting their season at 1-0. The second game took place on Saturday, April 20, where they dominated the London Monarchs with a commanding 37-3 win, improving their record to 2-0. In Week 3, on Sunday, April 28, they faced the Barcelona Dragons in a tightly contested away game, emerging victorious with a final score of 33-29, further extending their undefeated record to 3-0. Overall, the team has had a strong start, consistently performing well both at home and on the road.
+
+Now, give summary for the following table. Summary needs to be thorough and comprehensive and detailed.

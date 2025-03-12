@@ -1,0 +1,9 @@
+conda create -n chain_table python=3.10.13
+conda activate chain_table
+pip install -r requirements.txt
+
+Check wikitq accuracy:
+.tsv files are model output files
+python version is python3
+use command: python evaluator-py3.py -t ./tagged <tsv file path>
+ex command: python evaluator-py3.py -t WikiTQ_Evaluator_tagged/ ./wikitq_out/20241108055239.tsv 
