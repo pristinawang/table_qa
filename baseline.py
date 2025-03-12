@@ -1,4 +1,9 @@
 from datasets import load_dataset
+<<<<<<< HEAD
+=======
+import torch
+from vllm import LLM, SamplingParams
+>>>>>>> 2df85402731eb3fea657c357f067a5741508452e
 
 def dataset():
     dataset = load_dataset("Stanford/wikitablequestions")
@@ -7,7 +12,9 @@ def dataset():
     testDataset  = dataset['test']
     return trainDataset, valDataset, testDataset
 
+
 def prompt_vllm(self, prompt, llm, type, options_str=None):
+
     if type=="ans":
         content = "You are a helpful assistant. Provide only the direct answer, without any extra words, explanations, or references to data structure (e.g., no mentioning of rows, columns, or other metadata). Your response should be strictly the final answer in lowercase, with no introductory phrases."
     elif type=="f" and options_str is not None:
@@ -142,7 +149,9 @@ if __name__=='__main__':
 
     messages = [[
         {"role": "system", "content": content},
+
         {"role": "user", "content": "Hello, my name is"},
+
     ],
     [
         {"role": "system", "content": content},
@@ -155,6 +164,7 @@ if __name__=='__main__':
         print("Prompt")
         print(prompt)
         print("##########################")
+
     sampling_params = SamplingParams(max_tokens=500, min_tokens=0)
     #outputs = llm.generate(prompt, sampling_params)
     outputs = llm.chat(messages, sampling_params)
