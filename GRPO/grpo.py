@@ -16,12 +16,14 @@ import numpy as np
 from custom_utils import is_conversational
 import math
 class Preprocessor:
-    def __init__(self, dataset, chat) -> None:
+    def __init__(self, dataset, chat, apply_chat_template, tokenizer) -> None:
         '''
         chat is bool: chat format or not
         '''
         self.dataset = dataset
         self.chat=chat
+        self.apply_chat_template=apply_chat_template
+        self.tokenizer
     #     self.tokenizer=tokenizer
     # def tokenize_function(self, examples):
     #     return self.tokenizer(text=examples["prompt"], text_target=examples['completion'], padding=True) 
@@ -46,6 +48,36 @@ class Preprocessor:
                     ]
             formatted_output = process_answers(answers=example["answers"])
             return {"prompt": formatted_messages, "ground_truth": formatted_output}
+        if self.chat and self.apply_chat_template:
+            formatted_user_input = 'Table:\n'+TableToPIPE(T=example['table'])+'\nQuestion: '+example['question']
+            formatted_sys_input = 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.'
+            formatted_messages = [
+                        {"role": "system", "content": formatted_sys_input},
+                        {"role": "user", "content": formatted_user_input}
+                    ]
+            formatted_output = process_answers(answers=example["answers"])
+            example = {"prompt": formatted_messages, "ground_truth": formatted_output}
+            
+
+            ## From trainer code: apply_chat_template
+            if "prompt" in example:
+                last_role = example["prompt"][-1]["role"]
+                if last_role == "user":
+                    add_generation_prompt = True
+                    continue_final_message = False
+                elif last_role == "assistant":
+                    add_generation_prompt = False
+                    continue_final_message = True
+                else:
+                    raise ValueError(f"Invalid role in the last message: {last_role}")
+                prompt = self.tokenizer.apply_chat_template(
+                    example["prompt"],
+                    tools=tools,
+                    continue_final_message=continue_final_message,
+                    tokenize=False,
+                    add_generation_prompt=add_generation_prompt,
+                )
+            return {"prompt": prompt, "ground_truth": formatted_output}
         else:
             formatted_input = '\nPlease provide your reasoning process within <think>...</think> tags and only include the final answer inside <answer>...</answer> tags.\nTable:\n'+TableToPIPE(T=example['table'])+'\nQuestion: '+example['question']
             formatted_output = process_answers(answers=example["answers"])
@@ -292,7 +324,7 @@ def main():
     #     print('Batch')
     #     print(batch)
     print('-----TRAIN-----------')
-    train_iterator = iter(train_dataloader) 
+
     
     num_epochs=1
     check_point_step=math.ceil(len(train_dataloader)/10)
