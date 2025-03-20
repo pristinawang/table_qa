@@ -23,7 +23,7 @@ class Preprocessor:
         self.dataset = dataset
         self.chat=chat
         self.apply_chat_template=apply_chat_template
-        self.tokenizer
+        self.tokenizer=tokenizer
     #     self.tokenizer=tokenizer
     # def tokenize_function(self, examples):
     #     return self.tokenizer(text=examples["prompt"], text_target=examples['completion'], padding=True) 
@@ -38,8 +38,9 @@ class Preprocessor:
         Returns:
             dict: Formatted example with `input_text` and `word_labels`.
         """
-        if self.chat:
+        if self.chat and not(self.apply_chat_template):
             # {"prompt": [{"role": "user", "content": "What color is the sky?"}]}
+            print('check old')
             formatted_user_input = 'Table:\n'+TableToPIPE(T=example['table'])+'\nQuestion: '+example['question']
             formatted_sys_input = 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.'
             formatted_messages = [
@@ -49,6 +50,7 @@ class Preprocessor:
             formatted_output = process_answers(answers=example["answers"])
             return {"prompt": formatted_messages, "ground_truth": formatted_output}
         if self.chat and self.apply_chat_template:
+            print('check new')
             formatted_user_input = 'Table:\n'+TableToPIPE(T=example['table'])+'\nQuestion: '+example['question']
             formatted_sys_input = 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.'
             formatted_messages = [
@@ -72,7 +74,7 @@ class Preprocessor:
                     raise ValueError(f"Invalid role in the last message: {last_role}")
                 prompt = self.tokenizer.apply_chat_template(
                     example["prompt"],
-                    tools=tools,
+                    #tools=tools,
                     continue_final_message=continue_final_message,
                     tokenize=False,
                     add_generation_prompt=add_generation_prompt,
@@ -82,26 +84,6 @@ class Preprocessor:
             formatted_input = '\nPlease provide your reasoning process within <think>...</think> tags and only include the final answer inside <answer>...</answer> tags.\nTable:\n'+TableToPIPE(T=example['table'])+'\nQuestion: '+example['question']
             formatted_output = process_answers(answers=example["answers"])
             return {"prompt": formatted_input, "ground_truth": formatted_output}
-    
-
-
-    # def tokenize_function(self, examples):
-    #     """
-    #     Tokenizes formatted input and labels.
-
-    #     Args:
-    #         examples (dict): A batch of examples from the dataset.
-
-    #     Returns:
-    #         dict: Tokenized inputs and labels.
-    #     """
-    #     return self.tokenizer(
-    #         text=examples["input_text"],
-    #         text_target=examples["word_labels"],
-    #         padding="max_length",
-    #         truncation=True,
-    #         max_length=512  # Adjust as needed
-    #     )
 
     def preprocess(self):
         """
@@ -112,13 +94,8 @@ class Preprocessor:
         """
         # Apply formatting function
         formatted_dataset = self.dataset.map(self.format_input)
-        # print('New dataset')
-        # print(formatted_dataset[0])
         return formatted_dataset
-        # # Apply tokenization
-        # tokenized_dataset = formatted_dataset.map(self.tokenize_function, batched=True)
 
-        # return tokenized_dataset
 def finegrained_format_reward_func(completions, **kwargs):
     """Reward function that checks if the completion has a specific format."""
     # for completion in completions:

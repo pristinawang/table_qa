@@ -127,7 +127,7 @@ def main():
     
     # print('OG Val Dataset')
     # print(val_dataset[0])
-    preprocessor = Preprocessor(dataset=val_dataset, chat=True, apply_chat_template=True)               
+    preprocessor = Preprocessor(dataset=val_dataset, chat=True, apply_chat_template=True, tokenizer=tokenizer)               
     val_dataset = preprocessor.preprocess()
     val_dataset=val_dataset.remove_columns(['id', 'question', 'answers', 'table'])
     val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=True)
@@ -156,43 +156,37 @@ def main():
     else:
         print('device:', grpo_args.per_device_train_batch_size)
     print("Args:", grpo_args.train_batch_size)
-    trainer = CustomGRPOTrainer(
-        model=model,
-        processing_class=tokenizer,
-        reward_funcs=[format_reward_func, accuracy_reward_func],
-        args=grpo_args,
-        train_dataset=val_dataset,
-        peft_config=peft_config
-    )
+    # trainer = CustomGRPOTrainer(
+    #     model=model,
+    #     processing_class=tokenizer,
+    #     reward_funcs=[format_reward_func, accuracy_reward_func],
+    #     args=grpo_args,
+    #     train_dataset=val_dataset,
+    #     peft_config=peft_config
+    # )
 
-    # num_processes = trainer.accelerator.num_processes
-    # global_batch_size = grpo_args.per_device_train_batch_size * num_processes
-    # possible_values = [n_gen for n_gen in range(2, global_batch_size + 1) if (global_batch_size) % n_gen == 0]
-
-    
-    device = trainer.args.device
-    model = trainer.model.to(device)
-    model.eval()  # Set to training mode
+    # device = trainer.args.device
+    # model = trainer.model.to(device)
+    # model.eval()  # Set to training mode
 
 
-    ##
-    train_Useval_dataloader = trainer.get_train_dataloader()
-    train_iterator = iter(train_Useval_dataloader) 
-    inputs=next(train_iterator)
-    print('----train loader----')
-    print(inputs)
-    print('---------------------')
+    # train_Useval_dataloader = trainer.get_train_dataloader()
+    # train_iterator = iter(train_Useval_dataloader) 
+    # inputs=next(train_iterator)
+    # print('----train loader----')
+    # print(inputs)
+    # print('---------------------')
 
 
     inputs=next(val_iterator)
     print('-----My Val loader------')
     print(inputs)
     print('------------------------')
-    inputs = trainer._prepare_inputs(inputs)
-    print('------INPUTS Length-----------')
-    print(inputs['prompt_ids'].shape[0])
-    batch_num = inputs['prompt_ids'].shape[0]
-    loss = trainer.compute_loss(model, inputs)
+    # inputs = trainer._prepare_inputs(inputs)
+    # print('------INPUTS Length-----------')
+    # print(inputs['prompt_ids'].shape[0])
+    # batch_num = inputs['prompt_ids'].shape[0]
+    # loss = trainer.compute_loss(model, inputs)
 
     # Get optimizer and scheduler (created by Trainer)
     # optimizer = trainer.optimizer if trainer.optimizer else torch.optim.AdamW(model.parameters(), lr=5e-5)
