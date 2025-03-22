@@ -1,5 +1,6 @@
 import pandas as pd
 from typing import List
+import re
 def TableToPIPE(T):
     '''
     parameter: og table format
@@ -43,3 +44,20 @@ def process_answers(answers: List[str], target_delimiter:str = ", ") -> str:
         raise Exception("The Answer is EMPTY!")
     else:
         return output
+
+def completions_to_answers(completions):
+    # print('----Acc reward, Comple Format::---')
+    # print(completions)
+    # print('----------------')
+    if isinstance(completions[0],str):
+        completion_contents = completions  
+    else:
+        completion_contents = [completion[0]["content"] for completion in completions]
+    
+    # print('-----Acc reward, formatted completion-------')
+    # print(completion_contents)
+    # print('-------------------')
+    matches = [re.search(r"<answer>(.*?)</answer>", completion, re.DOTALL) for completion in completion_contents]
+    contents = [match.group(1) if match else "" for match in matches]
+    # Reward 1 if the content is the same as the ground truth, 0 otherwise
+    return contents

@@ -57,11 +57,11 @@ class CustomGRPOTrainer(GRPOTrainer):
         prompt_inputs = self.processing_class(
             prompts_text, return_tensors="pt", padding=True, padding_side="left", add_special_tokens=False
         )
-        print('--------Prompt, first item----------', len(prompts_text))
-        for prompt in prompts_text:
-            print(prompt)
-            break
-        print('---------prp----------')
+        # print('--------Prompt, first item----------', len(prompts_text))
+        # for prompt in prompts_text:
+        #     print(prompt)
+        #     break
+        # print('---------prp----------')
         # print('------Has or not------')
         # print(hasattr(Trainer, "_prepare_inputs"))  
         prompt_inputs = super(GRPOTrainer, self)._prepare_inputs(prompt_inputs)
@@ -135,9 +135,9 @@ class CustomGRPOTrainer(GRPOTrainer):
 
         # Decode the generated completions
         completions_text = self.processing_class.batch_decode(completion_ids, skip_special_tokens=True)
-        print('---completions_text, first completion----', len(completions_text))
-        print(completions_text[0])
-        print('--------------')
+        # print('---completions_text, first completion----', len(completions_text))
+        # print(completions_text[0])
+        # print('--------------')
         if is_conversational(inputs[0]):
             completions = []
             for prompt, completion in zip(prompts, completions_text):
@@ -145,11 +145,11 @@ class CustomGRPOTrainer(GRPOTrainer):
                 completions.append([{"role": "assistant", "content": bootstrap + completion}])
         else:
             completions = completions_text
-        print('---Comple, first completion----', len(completions))
-        for completion in completions:
-            print(completion)
-            break
-        print('--------------')
+        # print('---Comple, first completion----', len(completions))
+        # for completion in completions:
+        #     print(completion)
+        #     break
+        # print('--------------')
         rewards_per_func = torch.zeros(len(prompts), len(self.reward_funcs), device=device)
         for i, (reward_func, reward_processing_class) in enumerate(
             zip(self.reward_funcs, self.reward_processing_classes)
@@ -176,45 +176,45 @@ class CustomGRPOTrainer(GRPOTrainer):
         # Gather the reward per function: this part is crucial, because the rewards are normalized per group and the
         # completions may be distributed across processes
         rewards_per_func = gather(rewards_per_func)
-        print('------rewards per func--------')
-        print(rewards_per_func)
+        # print('------rewards per func--------')
+        # print(rewards_per_func)
         # Apply weights to each reward function's output and sum
         rewards = (rewards_per_func * self.reward_weights.to(device).unsqueeze(0)).sum(dim=1)
-        print('----rewards------')
-        print(rewards)
+        # print('----rewards------')
+        # print(rewards)
         # Compute grouped-wise rewards
         mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
         std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
-        print('-------mean and std------')
-        print(mean_grouped_rewards)
-        print(std_grouped_rewards)
+        # print('-------mean and std------')
+        # print(mean_grouped_rewards)
+        # print(std_grouped_rewards)
         # Normalize the rewards to compute the advantages
         mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
         std_grouped_rewards = std_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
         advantages = (rewards - mean_grouped_rewards) / (std_grouped_rewards + 1e-4)
-        print('------norm mean and std and adv-------')
-        print(mean_grouped_rewards)
-        print(std_grouped_rewards)
-        print(advantages)
+        # print('------norm mean and std and adv-------')
+        # print(mean_grouped_rewards)
+        # print(std_grouped_rewards)
+        # print(advantages)
         # Slice to keep only the local part of the data
         process_slice = slice(
             self.accelerator.process_index * len(prompts),
             (self.accelerator.process_index + 1) * len(prompts),
         )
         advantages = advantages[process_slice]
-        print('--------adv-------')
-        print(advantages)
+        # print('--------adv-------')
+        # print(advantages)
         # Log the metrics
         reward_per_func = rewards_per_func.mean(0)
-        print('-------new rewards per func--------')
-        print(reward_per_func)
+        # print('-------new rewards per func--------')
+        # print(reward_per_func)
         for i, reward_func in enumerate(self.reward_funcs):
             if isinstance(reward_func, nn.Module):  # Module instead of PretrainedModel for compat with compiled models
                 reward_func_name = reward_func.config._name_or_path.split("/")[-1]
             else:
                 reward_func_name = reward_func.__name__
             self._metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
-            print(reward_func_name, reward_per_func[i].item())
+            #print(reward_func_name, reward_per_func[i].item())
             # if not(f"rewards/{reward_func_name}" in self.custom_metrics): self.custom_metrics[f"rewards/{reward_func_name}"]=[reward_per_func[i].item()]
             # else:self.custom_metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
             self.custom_metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
@@ -295,8 +295,8 @@ class CustomGRPOTrainer(GRPOTrainer):
         # print((per_token_loss * completion_mask).sum(dim=1))
         # print(((per_token_loss * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)))
         # print(((per_token_loss * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean())
-        print('-------loss----------')
-        print(loss)
+        # print('-------loss----------')
+        # print(loss)
         # Log the metrics
         completion_length = self.accelerator.gather_for_metrics(completion_mask.sum(1)).float().mean().item()
         self._metrics["completion_length"].append(completion_length)
@@ -307,18 +307,19 @@ class CustomGRPOTrainer(GRPOTrainer):
         self.custom_metrics['train-loss'].append(loss.item())
         self.custom_metrics["kl"].append(self.accelerator.gather_for_metrics(mean_kl).mean().item())
         return loss
-    def batch_eval(self, inputs: dict[str, Union[torch.Tensor, Any]]) -> dict[str, Union[torch.Tensor, Any]]:
+    def batch_eval(self, inputs: dict[str, Union[torch.Tensor, Any]], is_conversational_qa) -> dict[str, Union[torch.Tensor, Any]]:
         device = self.accelerator.device
-        prompts = [x["prompt"] for x in inputs]
-        prompts_text = [maybe_apply_chat_template(example, self.processing_class)["prompt"] for example in inputs]
+        # prompts = [x["prompt"] for x in inputs]
+        # prompts_text = [maybe_apply_chat_template(example, self.processing_class)["prompt"] for example in inputs]
+        prompts_text = inputs["prompt"]
         prompt_inputs = self.processing_class(
             prompts_text, return_tensors="pt", padding=True, padding_side="left", add_special_tokens=False
         )
-        print('--------Prompt, first item----------', len(prompts_text))
-        for prompt in prompts_text:
-            print(prompt)
-            break
-        print('---------prp----------')
+        # print('--------Prompt, first item----------', len(prompts_text))
+        # for prompt in prompts_text:
+        #     print(prompt)
+        #     break
+        # print('---------prp----------')
         # print('------Has or not------')
         # print(hasattr(Trainer, "_prepare_inputs"))  
         prompt_inputs = super(GRPOTrainer, self)._prepare_inputs(prompt_inputs)
@@ -392,133 +393,20 @@ class CustomGRPOTrainer(GRPOTrainer):
 
         # Decode the generated completions
         completions_text = self.processing_class.batch_decode(completion_ids, skip_special_tokens=True)
-        print('---completions_text, first completion----', len(completions_text))
-        print(completions_text[0])
-        print('--------------')
-        if is_conversational(inputs[0]):
+        # print('---completions_text, first completion----', len(completions_text))
+        # print(completions_text[0])
+        # print('--------------')
+        if is_conversational_qa:
             completions = []
-            for prompt, completion in zip(prompts, completions_text):
-                bootstrap = prompt.pop()["content"] if prompt[-1]["role"] == "assistant" else ""
-                completions.append([{"role": "assistant", "content": bootstrap + completion}])
+            for completion in completions_text:
+                completions.append([{"role": "assistant", "content": completion}])
         else:
             completions = completions_text
-        print('---Comple, first completion----', len(completions))
-        for completion in completions:
-            print(completion)
-            break
-        print('--------------')
-        rewards_per_func = torch.zeros(len(prompts), len(self.reward_funcs), device=device)
-        for i, (reward_func, reward_processing_class) in enumerate(
-            zip(self.reward_funcs, self.reward_processing_classes)
-        ):
-            if isinstance(reward_func, nn.Module):  # Module instead of PretrainedModel for compat with compiled models
-                if is_conversational(inputs[0]):
-                    messages = [{"messages": p + c} for p, c in zip(prompts, completions)]
-                    texts = [apply_chat_template(x, reward_processing_class)["text"] for x in messages]
-                else:
-                    texts = [p + c for p, c in zip(prompts, completions)]
-                reward_inputs = reward_processing_class(
-                    texts, return_tensors="pt", padding=True, padding_side="right", add_special_tokens=False
-                )
-                reward_inputs = super()._prepare_inputs(reward_inputs)
-                with torch.inference_mode():
-                    rewards_per_func[:, i] = reward_func(**reward_inputs).logits[:, 0]  # Shape (B*G,)
-            else:
-                # Repeat all input columns (but "prompt" and "completion") to match the number of generations
-                keys = [key for key in inputs[0] if key not in ["prompt", "completion"]]
-                reward_kwargs = {key: [example[key] for example in inputs] for key in keys}
-                output_reward_func = reward_func(prompts=prompts, completions=completions, **reward_kwargs)
-                rewards_per_func[:, i] = torch.tensor(output_reward_func, dtype=torch.float32, device=device)
-
-        # Gather the reward per function: this part is crucial, because the rewards are normalized per group and the
-        # completions may be distributed across processes
-        rewards_per_func = gather(rewards_per_func)
-        print('------rewards per func--------')
-        print(rewards_per_func)
-        # Apply weights to each reward function's output and sum
-        rewards = (rewards_per_func * self.reward_weights.to(device).unsqueeze(0)).sum(dim=1)
-        print('----rewards------')
-        print(rewards)
-        # Compute grouped-wise rewards
-        mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
-        std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
-        print('-------mean and std------')
-        print(mean_grouped_rewards)
-        print(std_grouped_rewards)
-        # Normalize the rewards to compute the advantages
-        mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
-        std_grouped_rewards = std_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
-        advantages = (rewards - mean_grouped_rewards) / (std_grouped_rewards + 1e-4)
-        print('------norm mean and std and adv-------')
-        print(mean_grouped_rewards)
-        print(std_grouped_rewards)
-        print(advantages)
-        # Slice to keep only the local part of the data
-        process_slice = slice(
-            self.accelerator.process_index * len(prompts),
-            (self.accelerator.process_index + 1) * len(prompts),
-        )
-        advantages = advantages[process_slice]
-        print('--------adv-------')
-        print(advantages)
-        # Log the metrics
-        reward_per_func = rewards_per_func.mean(0)
-        print('-------new rewards per func--------')
-        print(reward_per_func)
-        for i, reward_func in enumerate(self.reward_funcs):
-            if isinstance(reward_func, nn.Module):  # Module instead of PretrainedModel for compat with compiled models
-                reward_func_name = reward_func.config._name_or_path.split("/")[-1]
-            else:
-                reward_func_name = reward_func.__name__
-            self._metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
-            print(reward_func_name, reward_per_func[i].item())
-            # if not(f"rewards/{reward_func_name}" in self.custom_metrics): self.custom_metrics[f"rewards/{reward_func_name}"]=[reward_per_func[i].item()]
-            # else:self.custom_metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
-            self.custom_metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
-        
-        
-        self.custom_table["prompts"]+= prompts_text
-        self.custom_table["completions"]+=completions_text
-        self.custom_table["format_rewards"]+=list(rewards_per_func[:, 0].detach().cpu().numpy())
-        self.custom_table["accuracy_rewards"]+=list(rewards_per_func[:, 1].detach().cpu().numpy())
-        self.custom_table["total_rewards"]+=list(rewards.detach().cpu().numpy())
-        self._metrics["reward"].append(rewards.mean().item())
-        self._metrics["reward_std"].append(std_grouped_rewards.mean().item())
-        self.custom_metrics["rewards/reward_mean"].append(rewards.mean().item())
-        self.custom_metrics["rewards/reward_std"].append(std_grouped_rewards.mean().item())
-        self.custom_metrics["advantages/advantage_sum"].append(advantages.sum().item())
-        self.custom_metrics["advantages/advantage_max"].append(advantages.max().item())
-        self.custom_metrics["advantages/advantage_min"].append(advantages.min().item())
-
-        if (
-            self.log_completions
-            and self.state.global_step % self.args.logging_steps == 0
-            and "wandb" in self.args.report_to
-        ):
-            import pandas as pd
-
-            # For logging
-            table = {
-                "step": [str(self.state.global_step)] * len(rewards),
-                "prompt": gather_object(prompts_text),
-                "completion": gather_object(completions_text),
-                "reward": rewards.tolist(),
-            }
-            df = pd.DataFrame(table)
-
-            if wandb.run is not None and self.accelerator.is_main_process:
-                wandb.log({"completions": wandb.Table(dataframe=df)})
-
-        return {
-            "prompt_ids": prompt_ids,
-            "prompt_mask": prompt_mask,
-            "completion_ids": completion_ids,
-            "completion_mask": completion_mask,
-            "ref_per_token_logps": ref_per_token_logps,
-            "advantages": advantages,
-        }
-    
-    
+        # print('---Comple, first completion----', len(completions))
+        # for completion in completions:
+        #     print(completion)
+        #     break
+        return completions
 # class CustomGRPOTrainer(GRPOTrainer):
 #     def __init__(
 #         self, log_with=None, accelerator=None, *args, **kwargs):

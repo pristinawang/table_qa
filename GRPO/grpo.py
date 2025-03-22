@@ -15,6 +15,8 @@ from tqdm import tqdm
 import numpy as np
 from custom_utils import is_conversational
 import math
+from evaluate import load
+from torch.utils.data import DataLoader
 class Preprocessor:
     def __init__(self, dataset, chat, apply_chat_template, tokenizer) -> None:
         '''
@@ -40,7 +42,6 @@ class Preprocessor:
         """
         if self.chat and not(self.apply_chat_template):
             # {"prompt": [{"role": "user", "content": "What color is the sky?"}]}
-            print('check old')
             formatted_user_input = 'Table:\n'+TableToPIPE(T=example['table'])+'\nQuestion: '+example['question']
             formatted_sys_input = 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.'
             formatted_messages = [
@@ -49,8 +50,7 @@ class Preprocessor:
                     ]
             formatted_output = process_answers(answers=example["answers"])
             return {"prompt": formatted_messages, "ground_truth": formatted_output}
-        if self.chat and self.apply_chat_template:
-            print('check new')
+        elif self.chat and self.apply_chat_template:
             formatted_user_input = 'Table:\n'+TableToPIPE(T=example['table'])+'\nQuestion: '+example['question']
             formatted_sys_input = 'A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.'
             formatted_messages = [
@@ -93,7 +93,7 @@ class Preprocessor:
             Dataset: The tokenized dataset.
         """
         # Apply formatting function
-        formatted_dataset = self.dataset.map(self.format_input)
+        formatted_dataset = self.dataset.map(self.format_input) #load_from_cache_file=False
         return formatted_dataset
 
 def finegrained_format_reward_func(completions, **kwargs):
@@ -173,6 +173,9 @@ def main():
     # Job id
     now = datetime.now()
     job_id = now.strftime("%Y%m%d%H%M%S")
+    print('----job_id------')
+    print(job_id)
+    print('------------------')
     wandb.login()
     run = wandb.init(
         # Set the project where this run will be logged
@@ -197,12 +200,15 @@ def main():
     train_dataset = dataset['train']
     val_dataset = dataset['validation']
     test_dataset  = dataset['test']
-    train_dataset_small=train_dataset.select(range(3))
+    train_dataset_small=train_dataset.select(range(11))
+    val_dataset_small=val_dataset.select(range(11))
     # Use this to test multiple answers: train_dataset_small=train_dataset.select(range(6250,6251))
     
     ## Load models
     model_id='meta-llama/Meta-Llama-3-8B-Instruct'#"meta-llama/Llama-3.1-8B-Instruct" #'meta-llama/Meta-Llama-3-8B-Instruct' #"meta-llama/Llama-3.2-1B-Instruct"
-
+    print('--------saved model names start with---------')
+    print("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id)
+    print('----------------------------------')
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     loadmodel = LoadModel(pretrained_model=model_id, tune_type='4bit', device='auto')  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
     model = loadmodel.load_model()
@@ -210,13 +216,22 @@ def main():
     ## Special tokens
     tokenizer.pad_token = tokenizer.eos_token
     
-    print('OG Dataset')
-    print(train_dataset_small[0])
-    preprocessor = Preprocessor(dataset=train_dataset, chat=True)               
+    # print('OG Dataset')
+    # print(train_dataset_small[0])
+    
+    
+    
+    preprocessor = Preprocessor(dataset=train_dataset, chat=True, apply_chat_template=False, tokenizer=None)               
     train_dataset = preprocessor.preprocess()
     train_dataset=train_dataset.remove_columns(['id', 'question', 'answers', 'table'])
-    print('Final dataset')
-    print(train_dataset[0])
+    val_batch_size=8
+    preprocessor = Preprocessor(dataset=val_dataset, chat=True, apply_chat_template=True, tokenizer=tokenizer)               
+    val_dataset = preprocessor.preprocess()
+    val_dataset=val_dataset.remove_columns(['id', 'question', 'answers', 'table'])
+    val_dataloader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=True)
+    val_iterator = iter(val_dataloader)
+    # print('Final dataset')
+    # print(train_dataset[0])
     peft_config = LoraConfig(task_type='CAUSAL_LM', inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
     ## this LoraConfig isn't needed here. LoadModel already has LoraConfig
     grpo_args = GRPOConfig(
@@ -237,7 +252,7 @@ def main():
         reward_funcs=[format_reward_func, accuracy_reward_func],
         args=grpo_args,
         train_dataset=train_dataset,
-        peft_config=peft_config
+        #peft_config=peft_config
     )
     # trainer = GRPOTrainer(
     #     model=model,
@@ -247,18 +262,18 @@ def main():
     #     train_dataset=train_dataset,
     #     peft_config=peft_config
     # )
-    print('----Trainer?----')
-    print(type(trainer))
+    # print('----Trainer?----')
+    # print(type(trainer))
     num_processes = trainer.accelerator.num_processes
     global_batch_size = grpo_args.per_device_train_batch_size * num_processes
     possible_values = [n_gen for n_gen in range(2, global_batch_size + 1) if (global_batch_size) % n_gen == 0]
-    print(num_processes, global_batch_size)
-    print(possible_values)
-    print('------data set, first item----')
-    for i in range(len(train_dataset)):
-        print(train_dataset[i])
-        break
-    print('------------------')
+    # print(num_processes, global_batch_size)
+    # print(possible_values)
+    # print('------data set, first item----')
+    # for i in range(len(train_dataset)):
+    #     print(train_dataset[i])
+    #     break
+    # print('------------------')
     # for step, inputs in tqdm(enumerate(cust_trainer.get_train_dataloader())):
     #     print('Step:', step)
     #     print(inputs)
@@ -284,14 +299,16 @@ def main():
     scheduler = trainer.lr_scheduler if trainer.lr_scheduler else None
     
     train_dataloader = trainer.get_train_dataloader()
-    print("Batch size", trainer._train_batch_size)
-    # Print DataLoader parameters
-    print('------Iter-----------')
-    train_iterator = iter(train_dataloader)
     
-    print('len', len(train_dataloader))
+    # Print DataLoader parameters
+    #print('------Iter-----------')
+    train_iterator = iter(train_dataloader)
+    print("Train Batch size", trainer._train_batch_size)
+    print('# Steps in Train loop', len(train_dataloader))
+    print("Val Batch size", val_batch_size)
+    print('# Steps in Val loop', len(val_dataloader))
     print('-------# Trainable Para------')
-    print(print_trainable_parameters(model=model))
+    print_trainable_parameters(model=model)
     print('----------------------------')
     # for step in enumerate(range(4)):
     #     batch=next(train_iterator)
@@ -300,48 +317,54 @@ def main():
     #     print(step)
     #     print('Batch')
     #     print(batch)
-    print('-----TRAIN-----------')
+    # print('-----TRAIN-----------')
 
     
     num_epochs=1
     check_point_step=math.ceil(len(train_dataloader)/10)
+    eval_freq=50
+    print('------Eval Freq: every ? train_step-------')
+    print(eval_freq)
+    print('-------------------------------------------')
+    metric = load("exact_match")
     for epoch in range(num_epochs):
+        model.train()
         for step in tqdm(range(len(train_dataloader))):
             inputs=next(train_iterator)
             model.zero_grad()
-            print('Step:',step)
+            #print('Step:',step)
             # print('------Bef Inputs-------')
             # print(inputs)
             inputs = trainer._prepare_inputs(inputs)
-            print('------INPUTS Length-----------')
-            print(inputs['prompt_ids'].shape[0])
+            # print('------INPUTS Length-----------')
+            # print(inputs['prompt_ids'].shape[0])
             batch_num = inputs['prompt_ids'].shape[0]
             loss = trainer.compute_loss(model, inputs)
-            print('-------LOSS-----------')
-            print(loss)
+            # print('-------LOSS-----------')
+            # print(loss)
             del inputs
             torch.cuda.empty_cache()
             trainer.accelerator.backward(loss)
-            print('Loss:', loss)
+            #print('Loss:', loss)
             loss=loss.detach()
-            print('loss detatch', loss)
+            #print('loss detatch', loss)
             optimizer.step()
             current_lr = optimizer.param_groups[0]['lr']
             
             ## Log
             global_grad_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), 2) for p in model.parameters() if p.grad is not None]), 2)
-            print('----GRAD-----')
-            print(global_grad_norm)
+            # print('----GRAD-----')
+            # print(global_grad_norm)
             trainer.custom_metrics['global_grad_norm'].append(global_grad_norm.item())
             trainer.custom_metrics['epoch'].append(epoch+1)
             trainer.custom_metrics['step'].append(step+1)
             trainer.custom_metrics['learning_rate'].append(current_lr)
             trainer.custom_table["step"]+=list(np.full((batch_num,), step+1))
             trainer.custom_table["epoch"]+=list(np.full((batch_num,), epoch+1))
-            print('---log----')
+            #print('---log----')
             for log_name,log in trainer.custom_metrics.items():
                 assert (step+1) == len(log), "The number of steps does not match the number of items in the log"
-                print(log_name, log)
+                #print(log_name, log)
             
             df = pd.DataFrame(trainer.custom_table)
             # Dictionary to store the last items
@@ -355,6 +378,31 @@ def main():
             #     "train-loss": loss,
             #     "learning_rate": current_lr
             # })
+            if (step%eval_freq==0 and step!=0) or step >=len(train_dataloader)-1:
+                model.eval()  # Set to training mode
+                val_iterator = iter(val_dataloader)
+                #print('----Val loop', step/eval_freq,'-----------')
+                for val_step in tqdm(range(len(val_dataloader))):
+                    inputs=next(val_iterator)
+                    # print('-----My Val loader------')
+                    # print(inputs)
+                    # print('------------------------')
+                    
+                    completions = trainer.batch_eval(inputs=inputs, is_conversational_qa=True)
+                    predictions=completions_to_answers(completions=completions)
+                    # print('------completions-----------')
+                    # print(completions)
+                    # print('------predictions--------')
+                    # print(predictions)
+                    metric.add_batch(predictions=predictions, references=inputs['ground_truth'])
+                results=metric.compute()
+                # print('------eval results------')
+                # print(results)
+                run.log({
+                    "eval/accuracy":results["exact_match"],
+                    "eval/step": step/eval_freq
+                })
+    
             if (step%check_point_step==0 and step!=0) or step >=len(train_dataloader)-1:
                 model.push_to_hub("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id+"-step"+str(step))
     
