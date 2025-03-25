@@ -201,7 +201,7 @@ def main():
     val_dataset = dataset['validation']
     test_dataset  = dataset['test']
     train_dataset_small=train_dataset.select(range(11))
-    val_dataset_small=val_dataset.select(range(11))
+    val_dataset_small=val_dataset.select(range(360))
     # Use this to test multiple answers: train_dataset_small=train_dataset.select(range(6250,6251))
     
     ## Load models
@@ -210,7 +210,7 @@ def main():
     print("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id)
     print('----------------------------------')
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    loadmodel = LoadModel(pretrained_model=model_id, tune_type='4bit', device='auto')  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
+    loadmodel = LoadModel(pretrained_model=model_id, tune_type='8bit', device='auto')  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
     model = loadmodel.load_model()
     
     ## Special tokens
@@ -224,8 +224,8 @@ def main():
     preprocessor = Preprocessor(dataset=train_dataset, chat=True, apply_chat_template=False, tokenizer=None)               
     train_dataset = preprocessor.preprocess()
     train_dataset=train_dataset.remove_columns(['id', 'question', 'answers', 'table'])
-    val_batch_size=8
-    preprocessor = Preprocessor(dataset=val_dataset, chat=True, apply_chat_template=True, tokenizer=tokenizer)               
+    val_batch_size=120
+    preprocessor = Preprocessor(dataset=val_dataset_small, chat=True, apply_chat_template=True, tokenizer=tokenizer)               
     val_dataset = preprocessor.preprocess()
     val_dataset=val_dataset.remove_columns(['id', 'question', 'answers', 'table'])
     val_dataloader = DataLoader(val_dataset, batch_size=val_batch_size, shuffle=True)
@@ -238,8 +238,9 @@ def main():
         output_dir="./out", 
         logging_steps=1,
         num_generations=3,
-        per_device_train_batch_size=6,
-        seed=42
+        per_device_train_batch_size=6, 
+        seed=42,
+        sync_ref_model=True
     ) #, use_vllm=True, vllm_device='cuda:0') #, vllm_gpu_memory_utilization=0.1
     if grpo_args.per_gpu_train_batch_size:
         print('GPU batch:', grpo_args.per_gpu_train_batch_size)
@@ -291,7 +292,8 @@ def main():
     # trainer.train()
     
     device = trainer.args.device
-    model = trainer.model.to(device)
+    #model = trainer.model.to(device)
+    model = trainer.model
     model.train()  # Set to training mode
 
     # Get optimizer and scheduler (created by Trainer)
@@ -321,12 +323,13 @@ def main():
 
     
     num_epochs=1
+    max_completion_thresh=700
     check_point_step=math.ceil(len(train_dataloader)/10)
-    eval_freq=50
+    eval_freq=200
     print('------Eval Freq: every ? train_step-------')
     print(eval_freq)
     print('-------------------------------------------')
-    metric = load("exact_match")
+    metric = load("exact_match", experiment_id=job_id)
     for epoch in range(num_epochs):
         model.train()
         for step in tqdm(range(len(train_dataloader))):
@@ -339,6 +342,7 @@ def main():
             # print('------INPUTS Length-----------')
             # print(inputs['prompt_ids'].shape[0])
             batch_num = inputs['prompt_ids'].shape[0]
+            #print('batch_num', batch_num)
             loss = trainer.compute_loss(model, inputs)
             # print('-------LOSS-----------')
             # print(loss)
@@ -366,11 +370,13 @@ def main():
                 assert (step+1) == len(log), "The number of steps does not match the number of items in the log"
                 #print(log_name, log)
             
-            df = pd.DataFrame(trainer.custom_table)
+            #df = pd.DataFrame(trainer.custom_table)
             # Dictionary to store the last items
             step_metrics = {key: values[-1] for key, values in trainer.custom_metrics.items()}
-            step_metrics["completions"]=wandb.Table(dataframe=df)
-
+            #step_metrics["completions"]=wandb.Table(dataframe=df)
+            if step_metrics["completion_length/max_completion_length"]>max_completion_thresh:
+                for i in range(-trainer._train_batch_size, 0):  # iterate over last 6 elements
+                    trainer.custom_table["completions"][i] = trainer.custom_table["completions"][i][:max_completion_thresh]
             run.log(step_metrics)
             # run.log({
             #     "epoch": epoch + 1,
@@ -395,16 +401,19 @@ def main():
                     # print('------predictions--------')
                     # print(predictions)
                     metric.add_batch(predictions=predictions, references=inputs['ground_truth'])
-                results=metric.compute()
+                results=metric.compute(regexes_to_ignore=["the ", "a ", "an "], ignore_case=True, ignore_punctuation=True)
                 # print('------eval results------')
                 # print(results)
+                df = pd.DataFrame(trainer.custom_table)
                 run.log({
+                    "completions":wandb.Table(dataframe=df),
                     "eval/accuracy":results["exact_match"],
                     "eval/step": step/eval_freq
                 })
-    
-            if (step%check_point_step==0 and step!=0) or step >=len(train_dataloader)-1:
                 model.push_to_hub("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id+"-step"+str(step))
+    
+            # if (step%check_point_step==0 and step!=0) or step >=len(train_dataloader)-1:
+            #     model.push_to_hub("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id+"-step"+str(step))
     
 def test_acc(): #<think>.*?</think><answer>.*?</answer>
     prompts = ["Problem: Solve the equation $2x + 3 = 7$. Solution:", "Problem: Solve the equation $3x - 5 = 10$."]
