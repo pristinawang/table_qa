@@ -5,6 +5,9 @@ from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTTrainer, SFTConfig
 from transformers import TrainerCallback
+from torch.utils.data import DataLoader
+from transformers import default_data_collator, get_scheduler, AdamW
+from tqdm import tqdm
 # Add the GRPO folder (sibling of SFT) to the path
 grpo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'GRPO'))
 sys.path.append(grpo_path)
@@ -49,7 +52,54 @@ class LogGenerationsCallback(TrainerCallback):
             "sample_generation": wandb.Html(response)
         })
 
+def train_and_eval(model, tokenizer, train_dataset, eval_dataset, training_args):
 
+    model.train()
+    print('Dataset')
+    print(train_dataset[0])
+    train_dataloader = DataLoader(train_dataset, batch_size=training_args.per_device_train_batch_size, shuffle=True, collate_fn=default_data_collator)
+    eval_dataloader = DataLoader(eval_dataset, batch_size=1, collate_fn=default_data_collator)
+    for batch in train_dataloader:
+        print(batch)
+        break
+    optimizer = AdamW(model.parameters(), lr=training_args.learning_rate)
+    lr_scheduler = get_scheduler(
+        name="linear",
+        optimizer=optimizer,
+        num_warmup_steps=training_args.warmup_steps,
+        num_training_steps=training_args.max_steps,
+    )
+
+    step = 0
+    for epoch in range(1):
+        for batch in tqdm(train_dataloader, desc=f"Epoch {epoch}"):
+            batch = {k: v.to(model.device) for k, v in batch.items()}
+            outputs = model(**batch)
+            loss = outputs.loss
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
+
+            if step % training_args.logging_steps == 0:
+                wandb.log({"train/loss": loss.item(), "step": step})
+
+            if step % training_args.eval_steps == 0 and step > 0:
+                model.eval()
+                with torch.no_grad():
+                    eval_loss = 0
+                    for eval_batch in eval_dataloader:
+                        eval_batch = {k: v.to(model.device) for k, v in eval_batch.items()}
+                        outputs = model(**eval_batch)
+                        eval_loss += outputs.loss.item()
+                    avg_eval_loss = eval_loss / len(eval_dataloader)
+                    wandb.log({"eval/loss": avg_eval_loss, "step": step})
+                model.train()
+
+            step += 1
+            if step >= training_args.max_steps:
+                return
+            
 def main():
     
 
@@ -125,18 +175,18 @@ def main():
 
     # --- Init WandB ---
     wandb.init(project=wandb_project, name="llama3-bespoke-sft")
+    train_and_eval(model, tokenizer, train_dataset, eval_dataset, training_args)
+    # # --- Trainer ---
+    # trainer = SFTTrainer(
+    #     model=model,
+    #     tokenizer=tokenizer,
+    #     args=training_args,
+    #     train_dataset=train_dataset,
+    #     eval_dataset=eval_dataset,
+    # )
 
-    # --- Trainer ---
-    trainer = SFTTrainer(
-        model=model,
-        tokenizer=tokenizer,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-    )
 
-
-    trainer.add_callback(LogGenerationsCallback(tokenizer))
+    # trainer.add_callback(LogGenerationsCallback(tokenizer))
 
 
 
