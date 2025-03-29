@@ -1,10 +1,16 @@
-import os
+import os, sys
 import torch
 import wandb
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTTrainer, SFTConfig
 from transformers import TrainerCallback
+# Add the GRPO folder (sibling of SFT) to the path
+grpo_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'GRPO'))
+sys.path.append(grpo_path)
+
+# Now import from loadmodel.py
+from loadmodel import *
 
 def data_test():
     dataset = load_dataset('bespokelabs/Bespoke-Stratos-17k')
@@ -26,9 +32,11 @@ def data_test():
 
 
 class LogGenerationsCallback(TrainerCallback):
+    def __init__(self, tokenizer):
+        self.tokenizer = tokenizer
     def on_evaluate(self, args, state, control, **kwargs):
         trainer = kwargs["model"]
-        tokenizer = kwargs["tokenizer"]
+        tokenizer = self.tokenizer
 
         inputs = torch.tensor([kwargs["eval_dataloader"].dataset[0]["input_ids"]]).to(args.device)
         output = trainer.generate(input_ids=inputs, max_new_tokens=100)
@@ -40,7 +48,8 @@ class LogGenerationsCallback(TrainerCallback):
             "sample_prompt": wandb.Html(prompt),
             "sample_generation": wandb.Html(response)
         })
-        
+
+
 def main():
     
 
@@ -52,11 +61,13 @@ def main():
     # --- Load tokenizer & model ---
     tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=True)
     tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        model_id, 
-        device_map="auto", 
-        torch_dtype=torch.bfloat16
-    )
+    # model = AutoModelForCausalLM.from_pretrained(
+    #     model_id, 
+    #     device_map="auto", 
+    #     torch_dtype=torch.bfloat16
+    # )
+    loadmodel = LoadModel(pretrained_model=model_id, tune_type='4bit', device='auto')  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
+    model = loadmodel.load_model()
 
     # --- Format each example using chat template ---
     def format_chat(example):
@@ -125,8 +136,9 @@ def main():
     )
 
 
+    trainer.add_callback(LogGenerationsCallback(tokenizer))
 
-    trainer.add_callback(LogGenerationsCallback())
+
 
     # --- Train ---
     trainer.train()
