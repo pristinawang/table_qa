@@ -17,6 +17,7 @@ from custom_utils import is_conversational
 import math
 from evaluate import load
 from torch.utils.data import DataLoader
+from accelerate.utils import is_peft_model
 class Preprocessor:
     def __init__(self, dataset, chat, apply_chat_template, tokenizer) -> None:
         '''
@@ -169,6 +170,14 @@ def print_trainable_parameters(model):
     print(
         f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
     )
+
+def print_trainable_parameters_names(model):
+    trainable_params = [(name, param.shape) for name, param in model.named_parameters() if param.requires_grad]
+
+    print("Trainable parameters:")
+    for name, shape in trainable_params:
+        print(f" - {name}: {shape}")
+
 def main():
     # Job id
     now = datetime.now()
@@ -205,14 +214,13 @@ def main():
     # Use this to test multiple answers: train_dataset_small=train_dataset.select(range(6250,6251))
     
     ## Load models
-    model_id='meta-llama/Meta-Llama-3-8B-Instruct'#"meta-llama/Llama-3.1-8B-Instruct" #'meta-llama/Meta-Llama-3-8B-Instruct' #"meta-llama/Llama-3.2-1B-Instruct"
+    model_id="meta-llama/Meta-Llama-3-8B-Instruct"#'meta-llama/Meta-Llama-3-8B-Instruct'#"meta-llama/Llama-3.1-8B-Instruct" #'meta-llama/Meta-Llama-3-8B-Instruct' #"meta-llama/Llama-3.2-1B-Instruct"
     print('--------saved model names start with---------')
     print("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id)
     print('----------------------------------')
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    loadmodel = LoadModel(pretrained_model=model_id, tune_type='8bit', device='auto')  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
+    loadmodel = LoadModel(pretrained_model=model_id, tune_type='4bit', device='auto')  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
     model = loadmodel.load_model()
-    
     ## Special tokens
     tokenizer.pad_token = tokenizer.eos_token
     
@@ -237,10 +245,12 @@ def main():
     grpo_args = GRPOConfig(
         output_dir="./out", 
         logging_steps=1,
-        num_generations=3,
+        num_generations=6,
         per_device_train_batch_size=6, 
         seed=42,
-        sync_ref_model=True
+        sync_ref_model=True,
+        # ref_model_sync_steps=100,
+        # ref_model_mixup_alpha=0.8
     ) #, use_vllm=True, vllm_device='cuda:0') #, vllm_gpu_memory_utilization=0.1
     if grpo_args.per_gpu_train_batch_size:
         print('GPU batch:', grpo_args.per_gpu_train_batch_size)
@@ -295,7 +305,6 @@ def main():
     #model = trainer.model.to(device)
     model = trainer.model
     model.train()  # Set to training mode
-
     # Get optimizer and scheduler (created by Trainer)
     optimizer = trainer.optimizer if trainer.optimizer else torch.optim.AdamW(model.parameters(), lr=5e-5)
     scheduler = trainer.lr_scheduler if trainer.lr_scheduler else None
@@ -325,7 +334,7 @@ def main():
     num_epochs=1
     max_completion_thresh=700
     check_point_step=math.ceil(len(train_dataloader)/10)
-    eval_freq=200
+    eval_freq=500
     print('------Eval Freq: every ? train_step-------')
     print(eval_freq)
     print('-------------------------------------------')
