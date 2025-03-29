@@ -41,13 +41,13 @@ class LoadModel:
             model.add_adapter(self.peft_config, adapter_name="adapter_lora")
 
         elif self.tune_type == 'lora':
-            peft_config = LoraConfig(task_type=TaskType.SEQ_2_SEQ_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
+            
             model = AutoModelForCausalLM.from_pretrained(
                 self.pretrained_model,
                 device_map=self.device
             )
-            model = get_peft_model(model, peft_config)
-            model.print_trainable_parameters()
+            model = get_peft_model(model, self.peft_config)
+
         elif self.tune_type == "none":
             # model_kwargs = {"torch_dtype": torch.float16, "device_map": self.device} 
             model = AutoModelForCausalLM.from_pretrained(self.pretrained_model, device_map=self.device)

@@ -30,7 +30,6 @@ class CustomGRPOTrainer(GRPOTrainer):
         self.custom_metrics['rewards/reward_std']=[]
         for i, reward_func in enumerate(self.reward_funcs):
             self.custom_metrics[f"rewards/{reward_func.__name__}"]=[]
-        self.custom_metrics["completion_length"]=[]
         self.custom_metrics['train-loss']=[]
         self.custom_metrics['global_grad_norm']=[]
         self.custom_metrics["advantages/advantage_sum"]=[]
@@ -40,6 +39,8 @@ class CustomGRPOTrainer(GRPOTrainer):
         self.custom_metrics['learning_rate']=[]
         self.custom_metrics['epoch']=[]
         self.custom_metrics['step']=[]
+        self.custom_metrics["completion_length/average_completion_length"]=[]
+        self.custom_metrics["completion_length/max_completion_length"]=[]
         self.custom_table={
                             "epoch": [],
                             "step": [],
@@ -299,8 +300,10 @@ class CustomGRPOTrainer(GRPOTrainer):
         # print(loss)
         # Log the metrics
         completion_length = self.accelerator.gather_for_metrics(completion_mask.sum(1)).float().mean().item()
+        max_completion_length = self.accelerator.gather_for_metrics(completion_mask.sum(1)).float().max().item()
+        self.custom_metrics["completion_length/max_completion_length"].append(max_completion_length)
         self._metrics["completion_length"].append(completion_length)
-        self.custom_metrics["completion_length"].append(completion_length)
+        self.custom_metrics["completion_length/average_completion_length"].append(completion_length)
 
         mean_kl = ((per_token_kl * completion_mask).sum(dim=1) / completion_mask.sum(dim=1)).mean()
         self._metrics["kl"].append(self.accelerator.gather_for_metrics(mean_kl).mean().item())
