@@ -18,6 +18,7 @@ import math
 from evaluate import load
 from torch.utils.data import DataLoader
 from accelerate.utils import is_peft_model
+import random
 class Preprocessor:
     def __init__(self, dataset, chat, apply_chat_template, tokenizer) -> None:
         '''
@@ -192,13 +193,12 @@ def main():
         
     )
     
+    ## Set seed
+    seed=42
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
     
-    ####
-    # accelerator = Accelerator(log_with="wandb")
-
-    # accelerator.init_trackers("tableQA-GRPO")
-
-    ####
 
     ## Check if we have cuda?
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -214,7 +214,7 @@ def main():
     # Use this to test multiple answers: train_dataset_small=train_dataset.select(range(6250,6251))
     
     ## Load models
-    model_id="meta-llama/Meta-Llama-3-8B-Instruct"#'meta-llama/Meta-Llama-3-8B-Instruct'#"meta-llama/Llama-3.1-8B-Instruct" #'meta-llama/Meta-Llama-3-8B-Instruct' #"meta-llama/Llama-3.2-1B-Instruct"
+    model_id="meta-llama/Llama-3.2-1B-Instruct"#'meta-llama/Meta-Llama-3-8B-Instruct'#"meta-llama/Llama-3.1-8B-Instruct" #'meta-llama/Meta-Llama-3-8B-Instruct' #"meta-llama/Llama-3.2-1B-Instruct"
     print('--------saved model names start with---------')
     print("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id)
     print('----------------------------------')
@@ -245,9 +245,9 @@ def main():
     grpo_args = GRPOConfig(
         output_dir="./out", 
         logging_steps=1,
-        num_generations=6,
+        num_generations=1,
         per_device_train_batch_size=6, 
-        seed=42,
+        seed=seed,
         sync_ref_model=True,
         # ref_model_sync_steps=100,
         # ref_model_mixup_alpha=0.8
@@ -334,7 +334,7 @@ def main():
     num_epochs=1
     max_completion_thresh=700
     check_point_step=math.ceil(len(train_dataloader)/10)
-    eval_freq=500
+    eval_freq=50000
     print('------Eval Freq: every ? train_step-------')
     print(eval_freq)
     print('-------------------------------------------')
