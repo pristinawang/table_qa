@@ -28,10 +28,10 @@ class Preprocessor:
         self.chat=chat
         self.apply_chat_template=apply_chat_template
         self.tokenizer=tokenizer
-        #self.system_prompt='A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.'
-        self.system_prompt="Your role as an assistant involves thoroughly exploring questions through a systematic long thinking process before providing the final precise and accurate solutions. This requires engaging in a comprehensive cycle of analysis, summarizing, exploration, reassessment, reflection, backtracing, and iteration to develop well-considered thinking process. Please structure your response into two main sections: Thought and Solution. In the Thought section, detail your reasoning process using the specified format: <|begin_of_thought|> {thought with steps separated with '\n\n'} <|end_of_thought|> Each step should include detailed considerations such as analisying questions, summarizing relevant findings, brainstorming new ideas, verifying the accuracy of the current steps, refining any errors, and revisiting previous steps. In the Solution section, based on various attempts, explorations, and reflections from the Thought section, systematically present the final solution that you deem correct. The solution should remain a logical, accurate, concise expression style and detail necessary step needed to reach the conclusion, formatted as follows: <|begin_of_solution|> {final formatted, precise, and clear solution} <|end_of_solution|> Now, try to solve the following question through the above guidelines:"
-        self.user_prompt_instruction="Return your final response within \\boxed{}."
-        
+        self.system_prompt='A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.'
+        #self.system_prompt="Your role as an assistant involves thoroughly exploring questions through a systematic long thinking process before providing the final precise and accurate solutions. This requires engaging in a comprehensive cycle of analysis, summarizing, exploration, reassessment, reflection, backtracing, and iteration to develop well-considered thinking process. Please structure your response into two main sections: Thought and Solution. In the Thought section, detail your reasoning process using the specified format: <|begin_of_thought|> {thought with steps separated with '\n\n'} <|end_of_thought|> Each step should include detailed considerations such as analisying questions, summarizing relevant findings, brainstorming new ideas, verifying the accuracy of the current steps, refining any errors, and revisiting previous steps. In the Solution section, based on various attempts, explorations, and reflections from the Thought section, systematically present the final solution that you deem correct. The solution should remain a logical, accurate, concise expression style and detail necessary step needed to reach the conclusion, formatted as follows: <|begin_of_solution|> {final formatted, precise, and clear solution} <|end_of_solution|> Now, try to solve the following question through the above guidelines:"
+        #self.user_prompt_instruction="Return your final response within \\boxed{}."
+        self.user_prompt_instruction=""
         # "<|begin_of_thought|>\n\nOkay, let me try to figure out this problem. So, we have this operation defined as a⊗b = a²/b. And we need to compute [(1⊗2)⊗3] - [1⊗(2⊗3)]. Then choose the correct answer from the options given. Alright, let's break it down step by step.\n\nFirst, I need to remember that the operation ⊗ is not associative, right? Because the problem is asking for the difference between two different groupings: (1⊗2)⊗3 and 1⊗(2⊗3). So, the order in which we perform the operations matters here. That's probably why there's a subtraction between them.\n\nLet me start by computing each part separately. Let's tackle the first part: (1⊗2)⊗3.\n\nStarting with the innermost operation, which is 1⊗2. According to the definition, a⊗b = a²/b. So here, a is 1 and b is 2. Plugging those in: 1² / 2 = 1/2. So, 1⊗2 equals 1/2.\n\nNow, we take that result and perform the next operation with 3. So, (1⊗2)⊗3 becomes (1/2)⊗3. Again, using the same definition: a is now 1/2 and b is 3. So, ( (1/2)² ) / 3 = (1/4) / 3 = 1/12. So, (1⊗2)⊗3 equals 1/12.\n\nAlright, that's the first part. Now let's compute the second part: 1⊗(2⊗3). Again, starting with the innermost operation, which is 2⊗3. Applying the definition: a is 2 and b is 3. So, 2² / 3 = 4/3. Therefore, 2⊗3 equals 4/3.\n\nNow, we need to compute 1⊗(4/3). Here, a is 1 and b is 4/3. Using the operation definition: 1² / (4/3) = 1 / (4/3) = 3/4. So, 1⊗(2⊗3) equals 3/4.\n\nNow, the problem asks for the difference between the two results: [(1⊗2)⊗3] - [1⊗(2⊗3)] = (1/12) - (3/4). To subtract these fractions, they need a common denominator. The denominators are 12 and 4, so 12 is the common denominator.\n\nConverting 3/4 to twelfths: 3/4 = 9/12. So, 1/12 - 9/12 = (1 - 9)/12 = -8/12. Simplifying that fraction by dividing numerator and denominator by 4: -8/12 = -2/3.\n\nHmm, looking at the answer choices, option A is -2/3. So, is that the answer? Wait, but let me double-check my calculations to make sure I didn't make a mistake somewhere.\n\nFirst, checking (1⊗2): 1² / 2 = 1/2. Correct. Then, (1/2)⊗3: (1/2)² / 3 = (1/4)/3 = 1/12. That seems right.\n\nNow, for 2⊗3: 2² / 3 = 4/3. Correct. Then, 1⊗(4/3): 1² / (4/3) = 1 / (4/3) = 3/4. Yes, that's correct.\n\nSubtracting 3/4 from 1/12: 1/12 - 3/4. Convert 3/4 to 9/12, so 1/12 - 9/12 = -8/12 = -2/3. Yes, that all checks out. So the answer should be -2/3, which is option A.\n\nWait, but let me think again. The operation is defined for all nonzero numbers, so we don't have any issues with division by zero here. 2⊗3 is 4/3, which is fine, and then 1⊗(4/3) is 3/4. Correct.\n\nAlternatively, maybe there's a different way to approach the problem? Let me try expanding both expressions using variables to see if there's a pattern.\n\nLet’s denote the first expression: (a⊗b)⊗c. Using the definition:\n\nFirst, compute a⊗b = a²/b.\n\nThen, take that result and ⊗ with c: (a²/b)⊗c = ( (a²/b)² ) / c = a⁴ / (b² c).\n\nNow, the second expression: a⊗(b⊗c). First compute b⊗c = b²/c.\n\nThen, a⊗(b²/c) = a² / (b²/c) = a² * (c / b²) = (a² c) / b².\n\nTherefore, the difference between the two expressions is:\n\n(a⁴ / (b² c)) - (a² c / b²) = (a⁴ - a² c²) / (b² c) = a² (a² - c²) / (b² c).\n\nHmm, factoring that, it's a² (a - c)(a + c) / (b² c).\n\nBut in our specific problem, a = 1, b = 2, c = 3. Plugging those values in:\n\n1² (1 - 3)(1 + 3) / (2² * 3) = 1 * (-2)(4) / (4 * 3) = (-8) / 12 = -2/3. Same result. So that confirms the answer is indeed -2/3.\n\nTherefore, I think my initial calculation was correct, and the answer is option A.\n\n**Final Answer**\n\\boxed{A}\n\n<|end_of_thought|>\n\n<|begin_of_solution|>\n\nTo determine the value of \\([(1 \\otimes 2) \\otimes 3] - [1 \\otimes (2 \\otimes 3)]\\) where the operation \\(\\otimes\\) is defined by \\(a \\otimes b = \\frac{a^2}{b}\\), we proceed as follows:\n\nFirst, compute \\(1 \\otimes 2\\):\n\\[\n1 \\otimes 2 = \\frac{1^2}{2} = \\frac{1}{2}\n\\]\nNext, use this result to compute \\((1 \\otimes 2) \\otimes 3\\):\n\\[\n\\left(\\frac{1}{2}\\right) \\otimes 3 = \\frac{\\left(\\frac{1}{2}\\right)^2}{3} = \\frac{\\frac{1}{4}}{3} = \\frac{1}{12}\n\\]\n\nNow, compute \\(2 \\otimes 3\\):\n\\[\n2 \\otimes 3 = \\frac{2^2}{3} = \\frac{4}{3}\n\\]\nThen, use this result to compute \\(1 \\otimes (2 \\otimes 3)\\):\n\\[\n1 \\otimes \\left(\\frac{4}{3}\\right) = \\frac{1^2}{\\frac{4}{3}} = \\frac{1}{\\frac{4}{3}} = \\frac{3}{4}\n\\]\n\nFinally, find the difference between the two results:\n\\[\n\\frac{1}{12} - \\frac{3}{4} = \\frac{1}{12} - \\frac{9}{12} = \\frac{1 - 9}{12} = \\frac{-8}{12} = -\\frac{2}{3}\n\\]\n\nThus, the answer is \\(\\boxed{A}\\).\n\n<|end_of_solution|>"
 
     def format_input(self, example):
@@ -128,14 +128,14 @@ def finegrained_format_reward_func(completions, **kwargs):
 def format_reward_func(completions, **kwargs):
     """Reward function that checks if the completion has a specific format."""
     
-    # pattern = r"^<think>.*?</think><answer>.*?</answer>$"
+    pattern = r"^<think>.*?</think><answer>.*?</answer>$"
     ## pattern that has \n\n in between each line
     # pattern = (
     #     r"^<\|begin_of_thought\|\>\n\n.*?<\|end_of_thought\|\>\n\n<\|begin_of_solution\|\>\n\n.*?<\|end_of_solution\|\>$"
     # )
-    pattern = (
-        r"^<\|begin_of_thought\|\>.*?<\|end_of_thought\|\>\n\n<\|begin_of_solution\|\>.*?<\|end_of_solution\|\>$"
-    )
+    # pattern = (
+    #     r"^<\|begin_of_thought\|\>.*?<\|end_of_thought\|\>\n\n<\|begin_of_solution\|\>.*?<\|end_of_solution\|\>$"
+    # )
     
     if isinstance(completions[0],str):
         completion_contents = completions  
@@ -149,8 +149,8 @@ def format_reward_func(completions, **kwargs):
     
 
 def accuracy_reward_func(completions, ground_truth, **kwargs):
-    # pattern = r"<answer>(.*?)</answer>"
-    pattern = r"<\|begin_of_solution\|>.*?\\boxed\{(.*?)\}.*?<\|end_of_solution\|>"
+    pattern = r"<answer>(.*?)</answer>"
+    #pattern = r"<\|begin_of_solution\|>.*?\\boxed\{(.*?)\}.*?<\|end_of_solution\|>"
     
     if isinstance(completions[0],str):
         completion_contents = completions  
@@ -206,8 +206,9 @@ def main():
     
 
     ## Check if we have cuda?
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("Using", device, "; using gpu:", torch.cuda.get_device_name())
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device="cpu"
+    # print("Using", device, "; using gpu:", torch.cuda.get_device_name())
     
     ## Dataset
     dataset = load_dataset("Stanford/wikitablequestions")
@@ -215,16 +216,16 @@ def main():
     val_dataset = dataset['validation']
     test_dataset  = dataset['test']
     train_dataset_small=train_dataset.select(range(11))
-    val_dataset_small=val_dataset.select(range(120))
+    val_dataset_small=val_dataset.select(range(360))
     # Use this to test multiple answers: train_dataset_small=train_dataset.select(range(6250,6251))
     
     ## Load models
-    model_id="bespokelabs/Bespoke-Stratos-7B"#'meta-llama/Meta-Llama-3-8B-Instruct'#"meta-llama/Llama-3.1-8B-Instruct" #'meta-llama/Meta-Llama-3-8B-Instruct' #"meta-llama/Llama-3.2-1B-Instruct"
+    model_id='meta-llama/Meta-Llama-3-8B-Instruct'#"bespokelabs/Bespoke-Stratos-7B"#'meta-llama/Meta-Llama-3-8B-Instruct'#"meta-llama/Llama-3.1-8B-Instruct" #'meta-llama/Meta-Llama-3-8B-Instruct' #"meta-llama/Llama-3.2-1B-Instruct"
     print('--------saved model names start with---------')
     print("tableQA-GRPO-"+model_id.split('/')[1]+"-"+job_id)
     print('----------------------------------')
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    loadmodel = LoadModel(pretrained_model=model_id, tune_type='8bit', device='auto')  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
+    loadmodel = LoadModel(pretrained_model=model_id, tune_type='lora', device={"": "cpu"})#auto  #4bit #AutoModelForCausalLM.from_pretrained(model_id, device_map=device)
     model = loadmodel.load_model()
     ## Special tokens
     tokenizer.pad_token = tokenizer.eos_token
@@ -250,13 +251,15 @@ def main():
     grpo_args = GRPOConfig(
         output_dir="./out", 
         logging_steps=1,
-        num_generations=6,
+        num_generations=3,
         per_device_train_batch_size=6, 
-        max_completion_length=100000,
+        use_vllm=False,
+        #max_completion_length=256,#100000,
         seed=seed,
         sync_ref_model=True,
-        ref_model_sync_steps=100,
-        ref_model_mixup_alpha=0.8
+        ref_model_sync_steps=500,
+        ref_model_mixup_alpha=0.8,
+        use_cpu=True
     ) #, use_vllm=True, vllm_device='cuda:0') #, vllm_gpu_memory_utilization=0.1
     if grpo_args.per_gpu_train_batch_size:
         print('GPU batch:', grpo_args.per_gpu_train_batch_size)
@@ -312,7 +315,7 @@ def main():
     model = trainer.model
     model.train()  # Set to training mode
     # Get optimizer and scheduler (created by Trainer)
-    optimizer = trainer.optimizer if trainer.optimizer else torch.optim.AdamW(model.parameters(), lr=5e-5)
+    optimizer = trainer.optimizer if trainer.optimizer else torch.optim.AdamW(model.parameters(), lr=0.5) #5e-5
     scheduler = trainer.lr_scheduler if trainer.lr_scheduler else None
     
     train_dataloader = trainer.get_train_dataloader()
@@ -340,14 +343,15 @@ def main():
     num_epochs=1
     max_completion_thresh=700
     check_point_step=math.ceil(len(train_dataloader)/10)
-    eval_freq=100
+    eval_freq=200
     print('------Eval Freq: every ? train_step-------')
     print(eval_freq)
     print('-------------------------------------------')
     metric = load("exact_match", experiment_id=job_id)
     for epoch in range(num_epochs):
-        model.train()
+        #model.train()
         for step in tqdm(range(len(train_dataloader))):
+            model.train()
             inputs=next(train_iterator)
             model.zero_grad()
             #print('Step:',step)
@@ -372,8 +376,7 @@ def main():
             
             ## Log
             global_grad_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), 2) for p in model.parameters() if p.grad is not None]), 2)
-            # print('----GRAD-----')
-            # print(global_grad_norm)
+            
             trainer.custom_metrics['global_grad_norm'].append(global_grad_norm.item())
             trainer.custom_metrics['epoch'].append(epoch+1)
             trainer.custom_metrics['step'].append(step+1)

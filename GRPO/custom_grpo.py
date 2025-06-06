@@ -16,6 +16,7 @@ from transformers.utils import is_peft_available
 if is_peft_available():
     from peft import PeftConfig
 from custom_utils import *
+from accelerate import Accelerator
 from trl.models import create_reference_model, prepare_deepspeed, unwrap_model_for_generation
 RewardFunc = Union[str, PreTrainedModel, Callable[[list, list], list[float]]]
 
@@ -25,6 +26,7 @@ RewardFunc = Union[str, PreTrainedModel, Callable[[list, list], list[float]]]
 class CustomGRPOTrainer(GRPOTrainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.accelerator = Accelerator(cpu=True)
         self.custom_metrics={}
         self.custom_metrics['rewards/reward_mean']=[]
         self.custom_metrics['rewards/reward_std']=[]

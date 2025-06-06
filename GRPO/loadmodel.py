@@ -10,7 +10,8 @@ class LoadModel:
         self.device=device
         #self.peft_config = LoraConfig(task_type=TaskType.SEQ_2_SEQ_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
         self.peft_config = LoraConfig(task_type='CAUSAL_LM', inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1)
-    
+        if self.device == {"": "cpu"}: self.cpu=True
+        else: self.cpu=False
     def load_model(self):
         if self.tune_type == "8bit":
             config = BitsAndBytesConfig(
@@ -18,6 +19,7 @@ class LoadModel:
                 bnb_8bit_quant_type="nf4",
                 bnb_8bit_use_double_quant=True,
                 bnb_8bit_compute_dtype=torch.bfloat16,
+                llm_int8_enable_fp32_cpu_offload=self.cpu
             )
             model = AutoModelForCausalLM.from_pretrained(
                 self.pretrained_model,
@@ -32,6 +34,7 @@ class LoadModel:
                 bnb_4bit_quant_type="nf4",
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_compute_dtype=torch.bfloat16,
+                llm_int8_enable_fp32_cpu_offload=self.cpu
             )
             model = AutoModelForCausalLM.from_pretrained(
                 self.pretrained_model,
